@@ -32,6 +32,8 @@ import cv2
 from decord import AudioReader, VideoReader
 import shutil
 import subprocess
+import uuid
+import tempfile
 
 
 # Machine epsilon for a float32 (single precision)
@@ -44,24 +46,26 @@ def read_json(filepath: str):
     return json_dict
 
 
-def read_video(video_path: str, change_fps=True, use_decord=True):
+def patched_read_video(video_path: str, change_fps=True, use_decord=True):
     if change_fps:
-        temp_dir = "temp"
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-        os.makedirs(temp_dir, exist_ok=True)
-        command = (
-            f"ffmpeg -loglevel error -y -nostdin -i {video_path} -r 25 -crf 18 {os.path.join(temp_dir, 'video.mp4')}"
-        )
-        subprocess.run(command, shell=True)
-        target_video_path = os.path.join(temp_dir, "video.mp4")
+        # Create a unique ID for this operation
+        operation_id = str(uuid.uuid4())
+        with tempfile.TemporaryDirectory(
+            prefix=f"latentsync_read_video_{operation_id}_"
+        ) as temp_dir:
+            temp_video = os.path.join(temp_dir, f"{operation_id}_video.mp4")
+            command = f"ffmpeg -loglevel error -y -nostdin -i {video_path} -r 25 -crf 18 {temp_video}"
+            subprocess.run(command, shell=True)
+            if use_decord:
+                return read_video_decord(temp_video)
+            else:
+                return read_video_cv2(temp_video)
     else:
         target_video_path = video_path
-
-    if use_decord:
-        return read_video_decord(target_video_path)
-    else:
-        return read_video_cv2(target_video_path)
+        if use_decord:
+            return read_video_decord(target_video_path)
+        else:
+            return read_video_cv2(target_video_path)
 
 
 def read_video_decord(video_path: str):
