@@ -46,7 +46,7 @@ def read_json(filepath: str):
     return json_dict
 
 
-def patched_read_video(video_path: str, change_fps=True, use_decord=True):
+def read_video(video_path: str, change_fps=True, use_decord=True):
     if change_fps:
         # Create a unique ID for this operation
         operation_id = str(uuid.uuid4())
